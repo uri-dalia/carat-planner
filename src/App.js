@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, deleteDoc, updateDoc, query } from 'firebase/firestore';
-import { Plus, Users, Trash2, Search, CheckCircle, Clock, X, UserCircle, Camera, Sparkles, Loader2, Calendar, AlignLeft, Edit3, UserMinus, Image as ImageIcon } from 'lucide-center';
+// CORRECCIÓN: Se cambió 'lucide-center' por 'lucide-react' para que Vercel compile correctamente
+import { Plus, Users, Trash2, Search, CheckCircle, Clock, X, UserCircle, Camera, Sparkles, Loader2, Calendar, AlignLeft, Edit3, UserMinus, Image as ImageIcon } from 'lucide-react';
 
 // --- CONFIGURACIÓN DE FIREBASE DIRECTA ---
 const firebaseConfig = {
@@ -18,8 +19,8 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = "carat-planner-v3"; // ID consistente con tu proyecto
-const apiKey_Imagen = ""; // Key para generación de fotos si la tienes
+const appId = "carat-planner-v3"; 
+const apiKey_Imagen = ""; 
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -28,18 +29,15 @@ export default function App() {
   const [ideas, setIdeas] = useState([]); 
   const [profile, setProfile] = useState({ name: '', bias: '', photo: '', joinDate: '' });
   
-  // Modales
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   
-  // UI States
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [isGeneratingPhoto, setIsGeneratingPhoto] = useState(false);
 
-  // Formulario actividad
   const [newIdea, setNewIdea] = useState({
     title: '',
     description: '',
@@ -49,7 +47,6 @@ export default function App() {
     owners: []
   });
 
-  // 1. Autenticación
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
@@ -65,11 +62,9 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 2. Escucha de Firestore
   useEffect(() => {
     if (!user) return;
 
-    // Sincronización de Perfiles
     const profilesColRef = collection(db, 'artifacts', appId, 'public', 'data', 'profiles');
     const unsubProfiles = onSnapshot(profilesColRef, (querySnapshot) => {
       const items = [];
@@ -77,7 +72,6 @@ export default function App() {
       setAllProfiles(items);
     });
 
-    // Sincronización de Actividades/Ideas
     const ideasColRef = collection(db, 'artifacts', appId, 'public', 'data', 'ideas');
     const unsubIdeas = onSnapshot(ideasColRef, (querySnapshot) => {
       const items = [];
@@ -85,7 +79,6 @@ export default function App() {
       setIdeas(items);
     });
 
-    // Sincronización Perfil Propio
     const myProfileDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', user.uid);
     const unsubMyProfile = onSnapshot(myProfileDocRef, (docSnap) => {
       if (docSnap.exists()) setProfile(docSnap.data());
@@ -97,8 +90,6 @@ export default function App() {
       unsubMyProfile();
     };
   }, [user]);
-
-  // --- ACCIONES (Manteniendo lógica original) ---
 
   const saveProfile = async (updatedProfile) => {
     if (!user) return;
