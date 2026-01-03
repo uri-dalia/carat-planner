@@ -1,16 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, deleteDoc, updateDoc, query } from 'firebase/firestore';
-import { Plus, Users, Trash2, Search, CheckCircle, Clock, X, UserCircle, Camera, Sparkles, Loader2, Calendar, AlignLeft, Edit3, UserMinus, Image as ImageIcon } from 'lucide-react';
+import { Plus, Users, Trash2, Search, CheckCircle, Clock, X, UserCircle, Camera, Sparkles, Loader2, Calendar, AlignLeft, Edit3, UserMinus, Image as ImageIcon } from 'lucide-center';
 
-// Configuración de Firebase
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
+// --- CONFIGURACIÓN DE FIREBASE DIRECTA ---
+const firebaseConfig = {
+  apiKey: "AIzaSyC3s5RuTYQFFfVhgtrZ5OniiGqg_KFXdis",
+  authDomain: "carat-planner-v3.firebaseapp.com",
+  projectId: "carat-planner-v3",
+  storageBucket: "carat-planner-v3.firebasestorage.app",
+  messagingSenderId: "489311972528",
+  appId: "1:489311972528:web:c4bdce10341dd3b23adf75"
+};
+
+// Inicialización segura
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'seventeen-planner-v3';
-const apiKey = ""; 
+const appId = "carat-planner-v3"; // ID consistente con tu proyecto
+const apiKey_Imagen = ""; // Key para generación de fotos si la tienes
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -42,33 +51,25 @@ export default function App() {
 
   // 1. Autenticación
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        setUser(u);
+      } else {
+        try {
           await signInAnonymously(auth);
+        } catch (err) {
+          console.error("Error en auth anónima:", err);
         }
-      } catch (err) {
-        console.error("Auth error:", err);
       }
-    };
-    initAuth();
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      if (u) setUser(u);
     });
     return () => unsubscribe();
   }, []);
 
-  // 2. Escucha de Firestore (Rutas Originales Restauradas)
+  // 2. Escucha de Firestore
   useEffect(() => {
     if (!user) return;
 
-    const teamDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'teamSettings', 'current');
-    const unsubTeamNames = onSnapshot(teamDocRef, (docSnap) => {
-      if (docSnap.exists()) setTeam(docSnap.data().members || []);
-    });
-
+    // Sincronización de Perfiles
     const profilesColRef = collection(db, 'artifacts', appId, 'public', 'data', 'profiles');
     const unsubProfiles = onSnapshot(profilesColRef, (querySnapshot) => {
       const items = [];
@@ -76,6 +77,7 @@ export default function App() {
       setAllProfiles(items);
     });
 
+    // Sincronización de Actividades/Ideas
     const ideasColRef = collection(db, 'artifacts', appId, 'public', 'data', 'ideas');
     const unsubIdeas = onSnapshot(ideasColRef, (querySnapshot) => {
       const items = [];
@@ -83,20 +85,20 @@ export default function App() {
       setIdeas(items);
     });
 
+    // Sincronización Perfil Propio
     const myProfileDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'profiles', user.uid);
     const unsubMyProfile = onSnapshot(myProfileDocRef, (docSnap) => {
       if (docSnap.exists()) setProfile(docSnap.data());
     });
 
     return () => {
-      unsubTeamNames();
       unsubProfiles();
       unsubIdeas();
       unsubMyProfile();
     };
   }, [user]);
 
-  // --- ACCIONES ---
+  // --- ACCIONES (Manteniendo lógica original) ---
 
   const saveProfile = async (updatedProfile) => {
     if (!user) return;
@@ -109,7 +111,6 @@ export default function App() {
   };
 
   const deleteProfile = async (profileId) => {
-    if (!user) return;
     const confirmDelete = window.confirm("¿Estás segura de que quieres eliminar este perfil de la crew?");
     if (confirmDelete) {
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'profiles', profileId));
@@ -117,11 +118,11 @@ export default function App() {
   };
 
   const generateProfileImage = async () => {
-    if (!profile.bias) return;
+    if (!profile.bias || !apiKey_Imagen) return;
     setIsGeneratingPhoto(true);
     try {
-      const prompt = `A stylish K-pop fan aesthetic profile picture, inspired by Seventeen member ${profile.bias}, soft colors, elegant composition, high quality anime style or realistic photography, pastel palette #F7CAC9 and #92A8D1.`;
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`, {
+      const prompt = `A stylish K-pop fan aesthetic profile picture, inspired by Seventeen member ${profile.bias}, soft colors, elegant composition, pastel palette.`;
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey_Imagen}`, {
         method: 'POST',
         body: JSON.stringify({ instances: { prompt }, parameters: { sampleCount: 1 } })
       });
@@ -135,7 +136,6 @@ export default function App() {
     }
   };
 
-  // Cambio: Selector de archivos de galería
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -146,7 +146,7 @@ export default function App() {
   };
 
   const handleSaveActivity = async () => {
-    if (!user || !newIdea.title) return;
+    if (!newIdea.title) return;
     
     const finalFreq = newIdea.freq === 'Especial' ? (newIdea.specialFreq || 'Especial') : newIdea.freq;
     const data = {
@@ -184,14 +184,13 @@ export default function App() {
   };
 
   const removeIdea = async (id) => {
-    if (!user) return;
     const confirmDelete = window.confirm("¿Eliminar esta actividad definitivamente?");
     if (confirmDelete) {
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'ideas', id));
     }
   };
 
-  const filteredIdeas = ideas.filter(idea => {
+  const filteredIdeas = (ideas || []).filter(idea => {
     const searchLow = searchTerm.toLowerCase();
     const titleMatch = (idea.title || '').toLowerCase().includes(searchLow);
     const descMatch = (idea.description || '').toLowerCase().includes(searchLow);
@@ -399,26 +398,12 @@ export default function App() {
                       <p className="text-[10px] mt-2 font-bold uppercase tracking-widest">Sin Foto</p>
                     </div>
                   )}
-                  {isGeneratingPhoto && (
-                    <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
-                      <Loader2 className="animate-spin text-[#92A8D1]" />
-                    </div>
-                  )}
                 </div>
                 <div className="absolute -bottom-2 -right-2 flex gap-1">
-                  {/* Selector de Galería */}
                   <label className="bg-[#92A8D1] text-white p-2 rounded-full cursor-pointer shadow-md hover:scale-110 transition-all">
                     <ImageIcon size={14} />
                     <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
                   </label>
-                  {/* Botón IA */}
-                  <button 
-                    onClick={generateProfileImage}
-                    disabled={!profile.bias || isGeneratingPhoto}
-                    className="bg-[#F7CAC9] text-white p-2 rounded-full shadow-md hover:scale-110 transition-all disabled:opacity-50"
-                  >
-                    <Sparkles size={14} />
-                  </button>
                 </div>
               </div>
               <div className="w-full space-y-4">
@@ -460,7 +445,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Modal Actividad (Agregar o Editar) */}
+      {/* Modal Actividad */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-[2.5rem] p-8 max-w-xl w-full shadow-2xl overflow-y-auto max-h-[90vh]">
@@ -477,7 +462,6 @@ export default function App() {
             </div>
 
             <div className="space-y-6">
-              {/* Título */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Título de la Actividad</label>
                 <input 
@@ -488,7 +472,6 @@ export default function App() {
                 />
               </div>
 
-              {/* Descripción */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1">
                   <AlignLeft size={10}/> Descripción de la tarea
@@ -502,7 +485,6 @@ export default function App() {
                 />
               </div>
 
-              {/* Frecuencia */}
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Frecuencia</label>
                 <div className="flex flex-wrap gap-2">
@@ -530,7 +512,6 @@ export default function App() {
                 )}
               </div>
 
-              {/* Formatos */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Formatos de entrega</label>
                 <div className="flex flex-wrap gap-2">
@@ -545,7 +526,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Staff Responsable */}
               <div className="space-y-3">
                 <div className="flex justify-between items-center px-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Staff Asignado (Múltiple)</label>
@@ -574,9 +554,6 @@ export default function App() {
                       {p.name}
                     </button>
                   ))}
-                  {allProfiles.length === 0 && (
-                    <p className="col-span-full text-[10px] text-slate-300 italic text-center py-2">No hay perfiles creados</p>
-                  )}
                 </div>
               </div>
 
