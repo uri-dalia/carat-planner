@@ -5,12 +5,14 @@ import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, deleteDoc, u
 import { Plus, Users, Trash2, Search, CheckCircle, Clock, X, UserCircle, Camera, Sparkles, Loader2, Calendar, AlignLeft, Edit3, UserMinus } from 'lucide-react';
 
 // Configuración de Firebase
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'seventeen-planner-v3';
-const apiKey = ""; 
+const firebaseConfig = {
+  apiKey: "AIzaSyC3s5RuTYQFFfVhgtrZ5OniiGqg_KFXdis",
+  authDomain: "carat-planner-v3.firebaseapp.com",
+  projectId: "carat-planner-v3",
+  storageBucket: "carat-planner-v3.firebasestorage.app",
+  messagingSenderId: "489311972528",
+  appId: "1:489311972528:web:c4bdce10341dd3b23adf75"
+};
 
 export default function App() {
   const [user, setUser] = useState(null);
